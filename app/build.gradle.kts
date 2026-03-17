@@ -21,6 +21,20 @@ android {
         ndk {
             abiFilters.add("arm64-v8a")
         }
+
+        externalNativeBuild {
+            cmake {
+                cppFlags("-std=c++17")
+                arguments("-DANDROID_STL=c++_shared")
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     buildTypes {
@@ -43,6 +57,13 @@ android {
         compose = true
         viewBinding = true
         buildConfig = true
+        prefab = true
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 
     sourceSets {
@@ -63,6 +84,9 @@ dependencies {
     implementation(libs.material)
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("io.noties.markwon:core:4.6.2")
+
+    // ShadowHook
+    implementation("com.bytedance.android:shadowhook:1.0.9")
 
     compileOnly("de.robv.android.xposed:api:82")
     

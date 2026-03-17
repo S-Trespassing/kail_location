@@ -62,6 +62,13 @@ class FakeLocationXposed : IXposedHookLoadPackage, IXposedHookZygoteInit {
             LocationServiceHookLite.hook(cl)
             ThirdPartyLocationHookLite.hook(cl)
             SensorHookLite.hook(cl)
+            
+            // 只有在 system_server (pkg="android") 中才初始化 Native Hook
+            if (pkg == "android") {
+                NativeHook.startHook()
+                KailLog.i(null, "XPOSED", "Native Hook 尝试启动 (system_server)")
+            }
+
             KailLog.d(null, "XPOSED", "hook完成")
         }.onFailure {
             KailLog.e(null, "XPOSED", "hook失败: ${it.message}")

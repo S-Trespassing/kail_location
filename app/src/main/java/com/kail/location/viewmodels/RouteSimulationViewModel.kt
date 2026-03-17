@@ -341,12 +341,28 @@ class RouteSimulationViewModel(application: Application) : AndroidViewModel(appl
         _settings.value = _settings.value.copy(stepFreqSimulation = enabled)
         PreferenceManager.getDefaultSharedPreferences(getApplication())
             .edit().putBoolean("route_sim_step_enabled", enabled).apply()
+        if (_isSimulating.value) {
+            val app = getApplication<Application>()
+            val intent = Intent(app, ServiceGo::class.java)
+            intent.putExtra(ServiceGo.EXTRA_CONTROL_ACTION, ServiceGo.CONTROL_SET_STEP)
+            intent.putExtra(ServiceGo.EXTRA_STEP_ENABLED, enabled)
+            intent.putExtra(ServiceGo.EXTRA_STEP_FREQ, _settings.value.stepFreq)
+            app.startService(intent)
+        }
     }
 
     fun updateStepFreq(freq: Float) {
         _settings.value = _settings.value.copy(stepFreq = freq)
         PreferenceManager.getDefaultSharedPreferences(getApplication())
             .edit().putFloat("route_sim_step_freq", freq).apply()
+        if (_isSimulating.value) {
+            val app = getApplication<Application>()
+            val intent = Intent(app, ServiceGo::class.java)
+            intent.putExtra(ServiceGo.EXTRA_CONTROL_ACTION, ServiceGo.CONTROL_SET_STEP)
+            intent.putExtra(ServiceGo.EXTRA_STEP_ENABLED, _settings.value.stepFreqSimulation)
+            intent.putExtra(ServiceGo.EXTRA_STEP_FREQ, freq)
+            app.startService(intent)
+        }
     }
 
     fun updateMode(mode: com.kail.location.models.TransportMode) {

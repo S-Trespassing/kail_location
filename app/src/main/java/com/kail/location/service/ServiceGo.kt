@@ -104,6 +104,7 @@ class ServiceGo : Service() {
         const val CONTROL_SEEK = "seek"
         const val CONTROL_SET_SPEED = "set_speed"
         const val CONTROL_SET_SPEED_FLUCTUATION = "set_speed_fluctuation"
+        const val CONTROL_SET_STEP = "set_step"
         const val COORD_WGS84 = "WGS84"
         const val COORD_BD09 = "BD09"
         const val COORD_GCJ02 = "GCJ02"
@@ -310,6 +311,21 @@ class ServiceGo : Service() {
                             KailLog.i(this, "ServiceGo", "speedFluctuation updated to $speedFluctuation")
                         } catch (e: Exception) {
                             KailLog.e(this, "ServiceGo", "set_speed_fluctuation error: ${e.message}")
+                        }
+                        return super.onStartCommand(intent, flags, startId)
+                    }
+                    CONTROL_SET_STEP -> {
+                        try {
+                            stepEnabledCache = intent.getBooleanExtra(EXTRA_STEP_ENABLED, stepEnabledCache)
+                            stepFreqCache = intent.getFloatExtra(EXTRA_STEP_FREQ, stepFreqCache.toFloat()).toDouble()
+                            if (mRunMode == "root") {
+                                portalStartIfNeeded()
+                                portalSend("set_step_enabled") { putBoolean("enabled", stepEnabledCache) }
+                                portalSend("set_step_cadence") { putFloat("cadence", stepFreqCache.toFloat()) }
+                            }
+                            KailLog.i(this, "ServiceGo", "step simulation updated: enabled=$stepEnabledCache, freq=$stepFreqCache")
+                        } catch (e: Exception) {
+                            KailLog.e(this, "ServiceGo", "set_step error: ${e.message}")
                         }
                         return super.onStartCommand(intent, flags, startId)
                     }

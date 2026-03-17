@@ -100,6 +100,7 @@ internal object KailCommandHandler {
             "set_step_enabled" -> {
                 val enabled = out.getBoolean("enabled", false)
                 FakeLocState.setStepEnabled(enabled)
+                NativeHook.setStepConfigSafe(enabled, FakeLocState.getStepCadence())
                 out.putBoolean("ok", true)
                 KailLog.d(null, "XPOSED", "PORTAL接收：步频开关 enabled=$enabled", isHighFrequency = true)
                 return true
@@ -107,6 +108,7 @@ internal object KailCommandHandler {
             "set_step_cadence" -> {
                 val cadence = out.getFloat("cadence", 0f)
                 FakeLocState.setStepCadence(cadence)
+                NativeHook.setStepConfigSafe(FakeLocState.isStepEnabled(), cadence)
                 out.putBoolean("ok", true)
                 KailLog.d(null, "XPOSED", "PORTAL接收：步频 cadence=$cadence", isHighFrequency = true)
                 return true

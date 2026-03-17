@@ -41,15 +41,8 @@ fun AppDrawer(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                val hasRoot = com.kail.location.utils.GoUtils.isRootAvailable()
-                                if (hasRoot) {
-                                    onRunModeChange("root")
-                                    showRunModeDialog = false
-                                } else {
-                                    envMessage = "Root: ${if (hasRoot) "已检测" else "未检测"}\n请获取 Root 权限后再切换。"
-                                    showRunModeDialog = false
-                                    showEnvDialog = true
-                                }
+                                onRunModeChange("root")
+                                showRunModeDialog = false
                             }
                             .padding(16.dp)
                     ) {
