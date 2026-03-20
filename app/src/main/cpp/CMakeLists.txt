@@ -7,6 +7,7 @@ find_package(shadowhook REQUIRED CONFIG)
 
 add_library(kail_native_hook SHARED
         SensorHook.cpp
+        elf_util.cpp
 )
 
 target_link_libraries(kail_native_hook

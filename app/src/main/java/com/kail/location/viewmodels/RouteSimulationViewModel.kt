@@ -258,6 +258,7 @@ class RouteSimulationViewModel(application: Application) : AndroidViewModel(appl
         intent.putExtra(ServiceGo.EXTRA_SPEED_FLUCTUATION, settings.value.speedFluctuation)
         intent.putExtra(ServiceGo.EXTRA_STEP_ENABLED, settings.value.stepFreqSimulation)
         intent.putExtra(ServiceGo.EXTRA_STEP_FREQ, settings.value.stepFreq)
+        intent.putExtra(ServiceGo.EXTRA_NATIVE_SENSOR_HOOK, settings.value.nativeSensorHook)
         ContextCompat.startForegroundService(app, intent)
         _isSimulating.value = true
         _isPaused.value = false
@@ -302,7 +303,15 @@ class RouteSimulationViewModel(application: Application) : AndroidViewModel(appl
         val speedFluctuation = prefs.getBoolean("route_sim_speed_fluctuation", _settings.value.speedFluctuation)
         val stepEnabled = prefs.getBoolean("route_sim_step_enabled", _settings.value.stepFreqSimulation)
         val stepFreq = prefs.getFloat("route_sim_step_freq", _settings.value.stepFreq)
-        _settings.value = _settings.value.copy(speed = speed, isLoop = loop, speedFluctuation = speedFluctuation, stepFreqSimulation = stepEnabled, stepFreq = stepFreq)
+        val nativeSensorHook = prefs.getBoolean("route_sim_native_sensor_hook", _settings.value.nativeSensorHook)
+        _settings.value = _settings.value.copy(
+            speed = speed, 
+            isLoop = loop, 
+            speedFluctuation = speedFluctuation, 
+            stepFreqSimulation = stepEnabled, 
+            stepFreq = stepFreq,
+            nativeSensorHook = nativeSensorHook
+        )
     }
 
     fun updateSpeed(speed: Float) {
@@ -361,6 +370,19 @@ class RouteSimulationViewModel(application: Application) : AndroidViewModel(appl
             intent.putExtra(ServiceGo.EXTRA_CONTROL_ACTION, ServiceGo.CONTROL_SET_STEP)
             intent.putExtra(ServiceGo.EXTRA_STEP_ENABLED, _settings.value.stepFreqSimulation)
             intent.putExtra(ServiceGo.EXTRA_STEP_FREQ, freq)
+            app.startService(intent)
+        }
+    }
+
+    fun updateNativeSensorHook(enabled: Boolean) {
+        _settings.value = _settings.value.copy(nativeSensorHook = enabled)
+        PreferenceManager.getDefaultSharedPreferences(getApplication())
+            .edit().putBoolean("route_sim_native_sensor_hook", enabled).apply()
+        if (_isSimulating.value) {
+            val app = getApplication<Application>()
+            val intent = Intent(app, ServiceGo::class.java)
+            intent.putExtra(ServiceGo.EXTRA_CONTROL_ACTION, ServiceGo.CONTROL_SET_NATIVE_HOOK)
+            intent.putExtra(ServiceGo.EXTRA_NATIVE_SENSOR_HOOK, enabled)
             app.startService(intent)
         }
     }

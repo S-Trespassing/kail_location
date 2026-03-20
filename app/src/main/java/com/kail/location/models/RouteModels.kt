@@ -24,6 +24,7 @@ data class RouteInfo(
  * @property stepFreqSimulation 是否模拟步频。
  * @property stepFreq 步频数值。
  * @property isLoop 是否循环模拟。
+ * @property nativeSensorHook 是否启用 Native 传感器 Hook。
  */
 data class SimulationSettings(
     var speed: Float = 6.5f,
@@ -31,7 +32,8 @@ data class SimulationSettings(
     var speedFluctuation: Boolean = true,
     var stepFreqSimulation: Boolean = false,
     var stepFreq: Float = 2.5f,
-    var isLoop: Boolean = true
+    var isLoop: Boolean = true,
+    var nativeSensorHook: Boolean = false
 )
 
 /**

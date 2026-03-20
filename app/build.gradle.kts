@@ -13,8 +13,8 @@ android {
         applicationId = "com.kail.location"
         minSdk = 27
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.3.4"
+        versionCode = 11
+        versionName = "1.3.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
@@ -24,7 +24,7 @@ android {
 
         externalNativeBuild {
             cmake {
-                cppFlags("-std=c++17")
+                cppFlags("-std=c++23")
                 arguments("-DANDROID_STL=c++_shared")
             }
         }
