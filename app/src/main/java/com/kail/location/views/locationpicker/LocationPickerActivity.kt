@@ -485,7 +485,7 @@ class LocationPickerActivity : BaseActivity(), SensorEventListener {
         mBaiduMap?.setMyLocationConfiguration(
             MyLocationConfiguration(
                 MyLocationConfiguration.LocationMode.NORMAL, true,
-                MapUtils.bitmapDescriptorFromVector(this, R.drawable.ic_position)
+                null
             )
         )
 

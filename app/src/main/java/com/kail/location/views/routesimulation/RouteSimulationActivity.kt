@@ -238,7 +238,7 @@ class RouteSimulationActivity : BaseActivity(), SensorEventListener {
             MyLocationConfiguration(
                 MyLocationConfiguration.LocationMode.NORMAL,
                 true,
-                MapUtils.bitmapDescriptorFromVector(this, R.drawable.ic_position)
+                null
             )
         )
         // 建议使用 ApplicationContext 初始化 LocationClient，避免内存泄漏并确保 Context 稳定

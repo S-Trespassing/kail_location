@@ -125,7 +125,7 @@ fun RoutePlanScreen(
                     com.baidu.mapapi.map.MyLocationConfiguration(
                         com.baidu.mapapi.map.MyLocationConfiguration.LocationMode.NORMAL,
                         true,
-                        MapUtils.bitmapDescriptorFromVector(context, R.drawable.ic_position)
+                        null
                     )
                 )
                 KailLog.i(context, "RoutePlanScreen", "Map initialized")
