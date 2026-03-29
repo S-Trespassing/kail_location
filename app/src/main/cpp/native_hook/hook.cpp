@@ -9,6 +9,7 @@
 #include <sys/types.h>
 
 #include "sensor_simulator.h"
+#include "elf_util.h"
 
 #define LOG_TAG "NativeHook"
 #define ALOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -18,103 +19,19 @@
 #define SENSOR_TYPE_STEP_COUNTER 19
 #define SENSOR_TYPE_STEP_DETECTOR 18
 
-typedef void (*PollFunc)(void*, void*, uint64_t);
+typedef int (*PollFunc)(void*, void*, int);
 
 static PollFunc original_poll = nullptr;
 static bool hook_installed = false;
 
-extern "C" void hooked_poll(void* device, void* buffer, uint64_t count);
-
-static void* get_lib_base() {
-    FILE* fp = fopen("/proc/self/maps", "r");
-    if (!fp) return nullptr;
-    
-    char line[512];
-    void* base = nullptr;
-    
-    while (fgets(line, sizeof(line), fp)) {
-        if (strstr(line, "libsensorservice.so") && strstr(line, "r-xp")) {
-            uint64_t start;
-            sscanf(line, "%lx-", &start);
-            base = reinterpret_cast<void*>(start);
-            ALOGI("libsensorservice.so base: %p", base);
-            break;
-        }
-    }
-    
-    fclose(fp);
-    return base;
-}
-
-static void install_poll_hook() {
-    void* base = get_lib_base();
-    if (!base) {
-        ALOGE("Could not find libsensorservice.so base!");
-        return;
-    }
-    
-    // Offset for HidlSensorHalWrapper::poll function entry point
-    static constexpr uint32_t kPollOffset = 0x12da3c;
-    void* target = reinterpret_cast<char*>(base) + kPollOffset;
-    
-    ALOGI("Installing HIDL poll hook: base=%p target=%p offset=0x%x", base, target, kPollOffset);
-    
-    int ret = DobbyHook(
-        target,
-        reinterpret_cast<void*>(&hooked_poll),
-        reinterpret_cast<void**>(&original_poll)
-    );
-    
-    if (ret != 0) {
-        ALOGE("DobbyHook failed: %d", ret);
-        return;
-    }
-    
-    ALOGI("*** Poll hook installed successfully! ***");
-    hook_installed = true;
-}
-
 static void process_sensor_events(void* buffer, int count) {
-    if (!buffer || count <= 0) return;
-    
-    // Print raw hex for first 128 bytes to verify structure
-    unsigned char* p = reinterpret_cast<unsigned char*>(buffer);
-    ALOGI("=== RAW BUFFER START ===");
-    for (int i = 0; i < 128; i += 16) {
-        ALOGI("%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
-              p[i], p[i+1], p[i+2], p[i+3], p[i+4], p[i+5], p[i+6], p[i+7],
-              p[i+8], p[i+9], p[i+10], p[i+11], p[i+12], p[i+13], p[i+14], p[i+15]);
-    }
-    ALOGI("=== RAW BUFFER END ===");
-    
-    // Try to parse first event
-    char* evt = reinterpret_cast<char*>(buffer);
-    
-    int type = *reinterpret_cast<int*>(evt + 0x08);
-    int sensor = *reinterpret_cast<int*>(evt + 0x04);
-    int64_t timestamp = *reinterpret_cast<int64_t*>(evt + 0x10);
-    float* data = reinterpret_cast<float*>(evt + 0x18);
-    
-    ALOGI("[0] type=%d sensor=%d ts=%ld data=%.2f %.2f %.2f",
-          type, sensor, timestamp, data[0], data[1], data[2]);
-}
-
-extern "C" int hooked_poll(void* device, void* buffer, uint64_t count) {
-
-    // 先调用原函数，拿到真实返回值
-    int ret = 0;
-    if (original_poll) {
-        ret = original_poll(device, buffer, count);
-    }
-
-    if (!buffer || ret <= 0 || ret > 64) return ret;
-
-    ALOGI("=== poll return count = %d ===", ret);
+    if (!buffer || count <= 0 || count > 64) return;
 
     char* base = reinterpret_cast<char*>(buffer);
 
-    for (int i = 0; i < ret; i++) {
+    ALOGI("event count = %d", count);
 
+    for (int i = 0; i < count; i++) {
         char* evt = base + i * 0x60;
 
         int version = *(int*)(evt + 0x00);
@@ -124,21 +41,18 @@ extern "C" int hooked_poll(void* device, void* buffer, uint64_t count) {
 
         float* data = (float*)(evt + 0x18);
 
-        // 过滤无效
         if (type <= 0 || type > 50) continue;
 
         ALOGI("[#%d] type=%d sensor=%d ver=%d ts=%lld",
-              i, type, sensor, version, ts);
+              i, type, sensor, version, (long long)ts);
 
         ALOGI("     data = %.6f %.6f %.6f",
               data[0], data[1], data[2]);
 
-        // 👉 如果是加速度
         if (type == 1) {
             ALOGI("     ==> ACCELEROMETER");
         }
 
-        // 👉 如果是步数
         if (type == SENSOR_TYPE_STEP_COUNTER) {
             ALOGI("     ==> STEP_COUNTER = %.0f", data[0]);
         }
@@ -147,8 +61,62 @@ extern "C" int hooked_poll(void* device, void* buffer, uint64_t count) {
             ALOGI("     ==> STEP_DETECTOR");
         }
     }
+}
+
+extern "C" int hooked_poll(void* thiz, void* buffer, int count) {
+    int ret = 0;
+
+    if (original_poll) {
+        ret = original_poll(thiz, buffer, count);
+    }
+
+    if (!buffer || ret <= 0 || ret > 64) return ret;
+
+    process_sensor_events(buffer, ret);
 
     return ret;
+}
+
+static void install_poll_hook() {
+    ALOGI("Installing poll hook using ElfImg...");
+    
+    ElfImg elf("/system/lib64/libsensorservice.so");
+    
+    if (!elf.isValid()) {
+        ALOGE("Failed to load libsensorservice.so");
+        return;
+    }
+    
+    ALOGI("ELF loaded: base=%p", elf.getBase());
+    
+    // Try to find poll function using prefix lookup
+    void* pollAddr = elf.getSymbolAddressByPrefix("HidlSensorHalWrapper::poll");
+    
+    if (!pollAddr) {
+        pollAddr = elf.getSymbolAddressByPrefix("SensorDevice::poll");
+    }
+    
+    if (!pollAddr) {
+        pollAddr = elf.getSymbolAddressByPrefix("poll");
+    }
+    
+    if (pollAddr) {
+        ALOGI("Found poll at %p", pollAddr);
+        
+        int ret = DobbyHook(pollAddr, (void*)hooked_poll, (void**)&original_poll);
+        
+        if (ret == 0) {
+            ALOGI("✅ Hook SUCCESS!");
+            hook_installed = true;
+            return;
+        } else {
+            ALOGE("DobbyHook failed: %d", ret);
+        }
+    } else {
+        ALOGE("poll symbol not found");
+    }
+    
+    ALOGE("❌ Hook installation FAILED");
 }
 
 extern "C" {
@@ -178,8 +146,8 @@ Java_com_kail_location_xposed_FakeLocState_nativeInitHook(
     JNIEnv* env, 
     jclass clazz
 ) {
-    ALOGI("JNI: nativeInitHook - installing SensorDevice::poll hook");
-    
+    ALOGI("JNI: init hook (ElfImg)");
+
     gait::SensorSimulator::Get().Init();
     install_poll_hook();
     gait::SensorSimulator::Get().ReloadConfig();
